@@ -124,7 +124,9 @@ header.top{display:flex;align-items:center;justify-content:center;gap:14px;flex-
 
 .final{background:var(--brass-soft);border:1px solid var(--brass);border-radius:10px;padding:16px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
 .final .bigscore{font-family:var(--f-display);font-weight:800;font-size:34px;letter-spacing:.04em}
-.final .actions{display:flex;gap:10px;flex-wrap:wrap}
+.final .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.final .next{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.final .next b{color:var(--fg);font-weight:500}
 .btn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-family:var(--f-display);font-weight:800;letter-spacing:.05em;text-transform:uppercase;font-size:16px}
 .btn.primary{background:var(--brass);color:var(--bg);border-color:var(--brass)}
 
@@ -161,9 +163,6 @@ header.top{display:flex;align-items:center;justify-content:center;gap:14px;flex-
 
 <div class="wrap">
   <header class="top">
-    <button class="iconbtn" id="btnToday" title="Today's puzzle" aria-label="Today's puzzle">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
-    </button>
     <div class="marquee" aria-label="Roll Call">Roll Call</div>
     <button class="iconbtn" id="btnHelp" title="How to play" aria-label="How to play">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.5V14"/><path d="M12 17.5h.01"/></svg>
@@ -176,9 +175,7 @@ header.top{display:flex;align-items:center;justify-content:center;gap:14px;flex-
   <p class="tagline">Guess the <b>Democratic</b> incumbent in Congress</p>
 
   <div class="dateline">
-    <button class="nav" id="prevDay" aria-label="Previous day">‹</button>
     <div><span class="mode" id="modeLbl">Daily</span><h1 id="dateLbl">Session of —</h1></div>
-    <button class="nav" id="nextDay" aria-label="Next day">›</button>
   </div>
 
   <form class="guessbar" id="guessForm" autocomplete="off">
@@ -214,7 +211,7 @@ header.top{display:flex;align-items:center;justify-content:center;gap:14px;flex-
       <li>Type a name and submit. You have <b>6 guesses</b>.</li>
       <li>You start with <b>200 points</b>. Each hint you reveal subtracts its cost. A correct guess keeps whatever is left.</li>
       <li>"Reveal all hints" opens everything and leaves you with 50 points if you then name the incumbent.</li>
-      <li>A new incumbent appears at midnight. Use the arrows to replay earlier days you missed.</li>
+      <li>A new incumbent appears every day at midnight California time (Pacific Time). Past days can’t be replayed.</li>
     </ul>
     <p>Regions follow the U.S. Census: Northeast, Midwest, South, and West. PVI is the Cook Partisan Voter Index: D+11 means the district or state votes 11 points more Democratic than the nation.</p>
     <button class="btn primary" data-close>Got it</button>
@@ -291,7 +288,12 @@ const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replac
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function store(k,v){try{ if(v===undefined){return JSON.parse(localStorage.getItem(k)||'null')} localStorage.setItem(k,JSON.stringify(v)) }catch(e){return null}}
 function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-const todayStr = () => ymd(new Date());
+/* The puzzle day follows California (Pacific) time for every player */
+const TZ = 'America/Los_Angeles';
+const todayStr = () => new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+function untilNext(){ /* time left until midnight Pacific */
+  const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:TZ,hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  const left=86400-((+p.hour%24)*3600+(+p.minute)*60+(+p.second)); return `${Math.floor(left/3600)}h ${Math.floor(left%3600/60)}m`; }
 function addDays(s,n){const [y,m,d]=s.split('-').map(Number);return ymd(new Date(y,m-1,d+n))}
 function prettyDate(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}
 function seedRand(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19}
@@ -305,11 +307,11 @@ const pickFor = key => POOL[Math.floor(seedRand('rollcall2:'+key)()*POOL.length)
 /* ---------- state ---------- */
 let S;
 function load(mode,key){
-  S = (mode==='daily' && store('rc4:day:'+key)) || {mode,key,ans:pickFor(key),rev:[],guesses:[],st:'live'};
+  S = (mode==='daily' && store('rc5:day:'+key)) || {mode,key,ans:pickFor(key),rev:[],guesses:[],st:'live'};
   render();
 }
-function save(){ if(S.mode!=='daily') return; store('rc4:day:'+S.key,S);
-  if(S.st!=='live'){ const h=store('rc4:hist')||{}; if(h[S.key]==null){ h[S.key]={score:points(),won:S.st==='won',n:S.guesses.length}; store('rc4:hist',h) } } }
+function save(){ if(S.mode!=='daily') return; store('rc5:day:'+S.key,S);
+  if(S.st!=='live'){ const h=store('rc5:hist')||{}; if(h[S.key]==null){ h[S.key]={score:points(),won:S.st==='won',n:S.guesses.length}; store('rc5:hist',h) } } }
 const ALL_HINTS_PTS = 50;
 function points(){ if(S.st==='lost') return 0; if(S.rev.includes('*')) return ALL_HINTS_PTS;
   return Math.max(0, START - S.rev.reduce((t,k)=>t+(H[k]&&SHOWN.has(k)?val(H[k].cost,M[S.ans]):0),0)); }
@@ -333,15 +335,13 @@ function hintHTML(k, cls){
 }
 function render(){
   const today=todayStr(), m=M[S.ans], done=S.st!=='live', pts=points();
-  $('modeLbl').textContent = S.mode==='daily' ? (S.key===today?'Today’s Democratic Incumbent':'Archive') : 'Free play';
+  $('modeLbl').textContent = 'Today’s Democratic Incumbent';
   $('dateLbl').textContent = S.mode==='daily' ? 'Session of '+prettyDate(S.key) : 'Random Democratic incumbent';
-  $('prevDay').hidden = $('nextDay').hidden = S.mode!=='daily';
-  $('prevDay').disabled = S.key<=EPOCH; $('nextDay').disabled = S.key>=today;
   const wrongs = S.guesses.filter(i=>i!==S.ans);
   $('strikes').innerHTML = Array.from({length:MAX_GUESSES},(_,i)=>`<i class="${i<wrongs.length?'used':''}"></i>`).join('')+`<span>&nbsp;${MAX_GUESSES-S.guesses.length} guesses left</span>`;
   $('wrong').innerHTML = wrongs.map(i=>`<span>${esc(M[i].n)}</span>`).join('');
   $('guess').disabled = $('submitBtn').disabled = done;
-  $('guess').placeholder = done ? 'Come back tomorrow for a new incumbent' : 'Name a Democratic incumbent…';
+  $('guess').placeholder = done ? 'Come back tomorrow for a new incumbent (midnight California time)' : 'Name a Democratic incumbent…';
 
   const wiki = `https://en.wikipedia.org/wiki/${encodeURIComponent(m.w.replace(/ /g,'_'))}`;
   $('plate').innerHTML = `
@@ -359,7 +359,7 @@ function render(){
     const hintsUsed = allOpen ? 'all hints' : `${S.rev.length} hint${S.rev.length===1?'':'s'}`;
     $('finalBox').innerHTML = `<div class="final"><div class="who-done">${photo(m,250,'portrait')}<div><div class="bigscore">${S.st==='won'?pts+' / '+START:'Out of guesses'}</div>
       <div>${S.st==='won'?'Solved':'The answer was'} <b>${esc(m.n)}</b> (${esc(m.code)}, ${esc(m.st)}) with ${hintsUsed} and ${wrongs.length} wrong guess${wrongs.length===1?'':'es'}.</div></div></div>
-      <div class="actions"><button class="btn primary" id="shareBtn">Copy result</button></div></div>`;
+      <div class="actions"><span class="next">Next incumbent in <b id="nextIn">${untilNext()}</b></span><button class="btn primary" id="shareBtn">Copy result</button></div></div>`;
     $('shareBtn').onclick=share;
   } else $('finalBox').innerHTML='';
 }
@@ -427,15 +427,12 @@ $('hints').addEventListener('click',e=>{
 });
 
 /* ---------- header ---------- */
-$('prevDay').onclick=()=>load('daily',addDays(S.key,-1));
-$('nextDay').onclick=()=>load('daily',addDays(S.key,1));
-$('btnToday').onclick=()=>load('daily',todayStr());
 function openModal(id){$(id).hidden=false;$(id).querySelector('button').focus()}
 document.querySelectorAll('.modal').forEach(md=>md.addEventListener('click',e=>{if(e.target===md||e.target.closest('[data-close]'))md.hidden=true}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal').forEach(md=>md.hidden=true)});
 $('btnHelp').onclick=()=>openModal('helpModal');
 $('btnStats').onclick=()=>{
-  const h=store('rc4:hist')||{}, keys=Object.keys(h).sort().reverse(), wins=keys.filter(k=>h[k].won), scores=keys.map(k=>h[k].score);
+  const h=store('rc5:hist')||{}, keys=Object.keys(h).sort().reverse(), wins=keys.filter(k=>h[k].won), scores=keys.map(k=>h[k].score);
   let streak=0,d=todayStr(); if(!h[d]) d=addDays(d,-1); while(h[d]&&h[d].won){streak++;d=addDays(d,-1)}
   const avg=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0;
   $('statsGrid').innerHTML=[[keys.length,'Played'],[keys.length?Math.round(100*wins.length/keys.length)+'%':'0%','Solved'],[avg,'Avg points'],[streak,'Streak']].map(([v,l])=>`<div><strong>${v}</strong><span>${l}</span></div>`).join('');
@@ -444,6 +441,9 @@ $('btnStats').onclick=()=>{
 };
 
 load('daily',todayStr());
+/* Roll over to the new puzzle at midnight Pacific if the page is left open, and keep the countdown fresh */
+setInterval(()=>{ if(todayStr()!==S.key) load('daily',todayStr()); else if(S.st!=='live'){ const c=$('nextIn'); if(c) c.textContent=untilNext(); } },30000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && todayStr()!==S.key) load('daily',todayStr()); });
 })();
 </script>
 
