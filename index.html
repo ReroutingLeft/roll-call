@@ -214,7 +214,7 @@ header.top{display:flex;align-items:center;justify-content:center;gap:14px;flex-
       <li>Type a name and submit. You have <b>6 guesses</b>.</li>
       <li>You start with <b>200 points</b>. Each hint you reveal subtracts its cost. A correct guess keeps whatever is left.</li>
       <li>"Reveal all hints" opens everything and leaves you with 50 points if you then name the incumbent.</li>
-      <li>A new incumbent appears at midnight. Use the arrows to play earlier days.</li>
+      <li>A new incumbent appears at midnight. Use the arrows to replay earlier days you missed.</li>
     </ul>
     <p>Regions follow the U.S. Census: Northeast, Midwest, South, and West. PVI is the Cook Partisan Voter Index: D+11 means the district or state votes 11 points more Democratic than the nation.</p>
     <button class="btn primary" data-close>Got it</button>
@@ -234,7 +234,7 @@ header.top{display:flex;align-items:center;justify-content:center;gap:14px;flex-
 <script>
 (function(){
 const M = JSON.parse(document.getElementById('data').textContent);
-const START = 200, MAX_GUESSES = 6, EPOCH = '2026-01-01';
+const START = 200, MAX_GUESSES = 6, EPOCH = '2026-10-01';
 const REGION = {Northeast:['Connecticut','Maine','Massachusetts','New Hampshire','Rhode Island','Vermont','New Jersey','New York','Pennsylvania'],
   Midwest:['Illinois','Indiana','Michigan','Ohio','Wisconsin','Iowa','Kansas','Minnesota','Missouri','Nebraska','North Dakota','South Dakota'],
   South:['Delaware','Florida','Georgia','Maryland','North Carolina','South Carolina','Virginia','West Virginia','Alabama','Kentucky','Mississippi','Tennessee','Arkansas','Louisiana','Oklahoma','Texas'],
@@ -305,11 +305,11 @@ const pickFor = key => POOL[Math.floor(seedRand('rollcall2:'+key)()*POOL.length)
 /* ---------- state ---------- */
 let S;
 function load(mode,key){
-  S = (mode==='daily' && store('rc3:day:'+key)) || {mode,key,ans:pickFor(key),rev:[],guesses:[],st:'live'};
+  S = (mode==='daily' && store('rc4:day:'+key)) || {mode,key,ans:pickFor(key),rev:[],guesses:[],st:'live'};
   render();
 }
-function save(){ if(S.mode!=='daily') return; store('rc3:day:'+S.key,S);
-  if(S.st!=='live'){ const h=store('rc3:hist')||{}; if(h[S.key]==null){ h[S.key]={score:points(),won:S.st==='won',n:S.guesses.length}; store('rc3:hist',h) } } }
+function save(){ if(S.mode!=='daily') return; store('rc4:day:'+S.key,S);
+  if(S.st!=='live'){ const h=store('rc4:hist')||{}; if(h[S.key]==null){ h[S.key]={score:points(),won:S.st==='won',n:S.guesses.length}; store('rc4:hist',h) } } }
 const ALL_HINTS_PTS = 50;
 function points(){ if(S.st==='lost') return 0; if(S.rev.includes('*')) return ALL_HINTS_PTS;
   return Math.max(0, START - S.rev.reduce((t,k)=>t+(H[k]&&SHOWN.has(k)?val(H[k].cost,M[S.ans]):0),0)); }
@@ -435,7 +435,7 @@ document.querySelectorAll('.modal').forEach(md=>md.addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal').forEach(md=>md.hidden=true)});
 $('btnHelp').onclick=()=>openModal('helpModal');
 $('btnStats').onclick=()=>{
-  const h=store('rc3:hist')||{}, keys=Object.keys(h).sort().reverse(), wins=keys.filter(k=>h[k].won), scores=keys.map(k=>h[k].score);
+  const h=store('rc4:hist')||{}, keys=Object.keys(h).sort().reverse(), wins=keys.filter(k=>h[k].won), scores=keys.map(k=>h[k].score);
   let streak=0,d=todayStr(); if(!h[d]) d=addDays(d,-1); while(h[d]&&h[d].won){streak++;d=addDays(d,-1)}
   const avg=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0;
   $('statsGrid').innerHTML=[[keys.length,'Played'],[keys.length?Math.round(100*wins.length/keys.length)+'%':'0%','Solved'],[avg,'Avg points'],[streak,'Streak']].map(([v,l])=>`<div><strong>${v}</strong><span>${l}</span></div>`).join('');
