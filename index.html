@@ -261,11 +261,10 @@ const H = {
   stock: {lab:'Stock Holdings',            cost:5,  get:m=>m.stock},
   left:  {lab:'Left Tracker Score',        cost:10,  get:m=>m.left},
   pal:   {lab:'Palestine Tracker Score',   cost:10,  get:m=>m.pal},
-  grade: {lab:'Integrity Index Grade',     cost:10,  get:m=>m.grade},
-  m4a:   {lab:'Medicare for All',          cost:5,  get:m=>m.m4a},
+  m4a:   {lab:'Medicare for All',          cost:10,  get:m=>m.m4a},
   wage:  {lab:'Raise the Wage',            cost:5,  get:m=>m.wage},
   cfa:   {lab:'College for All',           cost:5,  get:m=>m.cfa},
-  usidp: {lab:'US-Israel Defense Partnership', cost:5, get:m=>m.usidp},
+  usidp: {lab:'US-Israel Defense Partnership', cost:10, get:m=>m.usidp},
   pvi:   {lab:m=>isSen(m)?'State PVI':'District PVI', cost:10, get:m=>m.pvi},
   dn:    {lab:m=>isSen(m)?'Senate Class':'District #', cost:30, get:m=>isSen(m)?m.cls:m.dn},
 };
@@ -285,7 +284,7 @@ const TONE = {
 const SECTIONS = [
   {t:'Personal Information',          ks:['g','age','eth']},
   {t:'Campaign Money',                ks:['coh','pac','isr','stock']},
-  {t:'Voting Record & Scores',        ks:['left','pal','grade','m4a','wage','cfa','usidp']},
+  {t:'Voting Record & Scores',        ks:['left','pal','m4a','wage','cfa','usidp']},
   {t:m=>isSen(m)?'State Information':'District Information', ks:['pvi','dn']},
 ];
 
